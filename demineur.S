@@ -18,18 +18,26 @@ TEMP     EQU   $50
 *
 *CREE LA LISTE DE BOMBES
 IBOMBS   JSR   INIT
+         LDA   #LBOMBS
+         STA   PTR
+         LDA   #>LBOMBS
+         STA   PTR+1
          LDX   #0
 IBOMBS1  CPX   NBOMBS    
-         BEQ   IBOMBS2    ;FINI
+         BEQ   IBOMBS3    ;FINI
          JSR   RND16      ;NEXT
+         STX   LEN
+         JSR   ISIN       
+         LDY   RESULT
+         CPY   #$FF       ;MAKE SURE NOT ALREADY IN IT
+         BNE   IBOMBS2
          STA   LBOMBS,X
-         JSR   PRBYTE
          INX
-         JMP   IBOMBS1
-IBOMBS2  RTS
+IBOMBS2  JMP   IBOMBS1
+IBOMBS3  RTS
 *
-*CHECK IF ACC IN LIST
-*PTR OF LEN, POS IN RESULT
+*CHECK IF ACC IN LIST PTR
+*OF LEN, POS IN RESULT
 *IF FOUND, ELSE $FF
 ISIN     LDY   #0
 ISIN1    CPY   LEN
