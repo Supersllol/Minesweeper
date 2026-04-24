@@ -5,20 +5,19 @@ PRHEX    EQU   $FDE3
 TABV     EQU   $FB5B
 SETINV   EQU   $FE80
 SETNORM  EQU   $FE84
+CROUT    EQU   $FD8E
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
 TEMP     EQU   $58        ;5B
+COUNT    EQU   $63        ;1B
 *
          ORG   $8000
-*
-         LDA   #$55
-         JSR   VOISINS
-         RTS
 *
          LDA   #10
          STA   NBOMBS
          JSR   INIT
+         JSR   PRGRID
          RTS
 *
 INIT     JSR   HOME
@@ -47,28 +46,68 @@ IBOMBS2  JMP   IBOMBS1
 IBOMBS3  RTS
 *
 *INITIALISE LA GRILLE
-IGRID    LDX   #0
-IGRID1   TXA              ;LOAD CURRENT SPOT
+IGRID    LDA   #0
+         STA   COUNT
+IGRID1   LDA   COUNT      ;LOAD CURRENT SPOT
          JSR   ISBOMB
          BEQ   IGRID2     ;IF NOT BOMB
          LDA   #$0F
-         STA   GRID,X
          JMP   IGRIDNXT
-IGRID2   JSR   CNTBMBS
+IGRID2   JSR   CNTBMBS    ;LOAD BOMB NEIGHBORS
+IGRIDNXT LDX   COUNT
          STA   GRID,X
-         JMP   IGRIDNXT
-IGRIDNXT CPX   #$FF
+         CPX   #$FF
          BEQ   IGRIDEND   ;IF $FF, FILLED ALL SPOTS
-         INX
+         INC   COUNT
          JMP   IGRID1
 IGRIDEND RTS
 *
+*PRINTS THE GRID TO THE SCREEN
+PRGRID   LDA   #00
+         STA   TEMP       ;ROW
+PRGRID1  LDA   #00
+         STA   TEMP+1     ;COLUMN              
+PRGRID2  LDA   #0
+         CLC   
+         ADC   TEMP
+         CLC   
+         ADC   TEMP+1
+         TAX
+         LDA   GRID,X
+         JSR   PRHEX
+         LDA   TEMP+1
+         CMP   #$0F       ;END OF ROW
+         BEQ   PRGRID3
+         INC   TEMP+1
+         JMP   PRGRID2    ;NEXT ELEMENT
+PRGRID3  JSR   CROUT
+         LDA   TEMP
+         CMP   #$F0      ;END OF GRID
+         BEQ   PRGRID4
+         CLC   
+         ADC   #$10
+         STA   TEMP
+         JMP   PRGRID1    ;RESET COLUMN
+PRGRID4  RTS
+*
 *LOAD BOMB COUNT AROUND SPOT TO ACC
-CNTBMBS  RTS
+CNTBMBS  JSR   VOISINS    ;LOAD LIST, AND NUMBER TO RESULT
+         LDX   #0
+         STX   TEMP
+CNTBMBS1 LDA   LVOISINS,X
+         JSR   ISBOMB
+         BEQ   CNTBMBS2   ;NO BOMB
+         INC   TEMP       ;BOMB COUNTER++
+CNTBMBS2 INX
+         CMP   RESULT     ;CHECK IF VISITED ALL
+         BEQ   CNTBMBS3
+         JMP   CNTBMBS1
+CNTBMBS3 LDA   TEMP
+         RTS
 *
 *STORE VOISINS OF SPOT IN LVOISINS,
 *NUMBER IN LEN
-VOISINS  STA   RESULT
+VOISINS  STA   RESULT     ;RESULT HAS ORIGINAL SPOT
          CMP   #$10
          BCS   VOISINSA   
          LDX   #$FF       ;SKIP MINUS ROW IF ROW 0
@@ -108,7 +147,9 @@ VOISINS7 LDA   TEMP
          LDA   TEMP+1     
          STA   TEMP+4     ;RESTART COLUMN COUNTER
          JMP   VOISINS5
-VOISINS8 RTS
+VOISINS8 LDA   LEN
+         STA   RESULT
+         RTS
 *
 VOISINSA LDX   #$EF
          STX   TEMP
