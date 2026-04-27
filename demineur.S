@@ -14,7 +14,7 @@ COUNT    EQU   $63        ;1B
 *
          ORG   $8000
 *
-         LDA   #10
+         LDA   #30
          STA   NBOMBS
          JSR   INIT
          JSR   PRGRID
@@ -24,6 +24,34 @@ INIT     JSR   HOME
          JSR   IBOMBS
          JSR   IGRID
          RTS
+*
+*PRINTS THE GRID TO THE SCREEN
+PRGRID   LDA   #00
+         STA   TEMP       ;ROW
+PRGRID1  LDA   #00
+         STA   TEMP+1     ;COLUMN              
+PRGRID2  LDA   #0
+         CLC   
+         ADC   TEMP
+         CLC   
+         ADC   TEMP+1
+         TAX
+         LDA   GRID,X
+         JSR   PRHEX
+         LDA   TEMP+1
+         CMP   #$0F       ;END OF ROW
+         BEQ   PRGRID3
+         INC   TEMP+1
+         JMP   PRGRID2    ;NEXT ELEMENT
+PRGRID3  JSR   CROUT
+         LDA   TEMP
+         CMP   #$F0      ;END OF GRID
+         BEQ   PRGRID4
+         CLC   
+         ADC   #$10
+         STA   TEMP
+         JMP   PRGRID1    ;RESET COLUMN
+PRGRID4  RTS
 *
 *CREE LA LISTE DE BOMBES
 IBOMBS   JSR   IRANDOM
@@ -62,36 +90,10 @@ IGRIDNXT LDX   COUNT
          JMP   IGRID1
 IGRIDEND RTS
 *
-*PRINTS THE GRID TO THE SCREEN
-PRGRID   LDA   #00
-         STA   TEMP       ;ROW
-PRGRID1  LDA   #00
-         STA   TEMP+1     ;COLUMN              
-PRGRID2  LDA   #0
-         CLC   
-         ADC   TEMP
-         CLC   
-         ADC   TEMP+1
-         TAX
-         LDA   GRID,X
-         JSR   PRHEX
-         LDA   TEMP+1
-         CMP   #$0F       ;END OF ROW
-         BEQ   PRGRID3
-         INC   TEMP+1
-         JMP   PRGRID2    ;NEXT ELEMENT
-PRGRID3  JSR   CROUT
-         LDA   TEMP
-         CMP   #$F0      ;END OF GRID
-         BEQ   PRGRID4
-         CLC   
-         ADC   #$10
-         STA   TEMP
-         JMP   PRGRID1    ;RESET COLUMN
-PRGRID4  RTS
-*
 *LOAD BOMB COUNT AROUND SPOT TO ACC
 CNTBMBS  JSR   VOISINS    ;LOAD LIST, AND NUMBER TO RESULT
+         LDA   RESULT
+         STA   TEMP+1
          LDX   #0
          STX   TEMP
 CNTBMBS1 LDA   LVOISINS,X
@@ -99,14 +101,14 @@ CNTBMBS1 LDA   LVOISINS,X
          BEQ   CNTBMBS2   ;NO BOMB
          INC   TEMP       ;BOMB COUNTER++
 CNTBMBS2 INX
-         CMP   RESULT     ;CHECK IF VISITED ALL
+         CPX   TEMP+1     ;CHECK IF VISITED ALL
          BEQ   CNTBMBS3
          JMP   CNTBMBS1
 CNTBMBS3 LDA   TEMP
          RTS
 *
 *STORE VOISINS OF SPOT IN LVOISINS,
-*NUMBER IN LEN
+*NUMBER IN RESULT
 VOISINS  STA   RESULT     ;RESULT HAS ORIGINAL SPOT
          CMP   #$10
          BCS   VOISINSA   
