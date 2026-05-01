@@ -6,11 +6,12 @@ TABV     EQU   $FB5B
 SETINV   EQU   $FE80
 SETNORM  EQU   $FE84
 CROUT    EQU   $FD8E
+CH       EQU   $24
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
 TEMP     EQU   $58        ;5B
-COUNT    EQU   $63        ;1B
+COUNT    EQU   $63        ;1B 
 *
          ORG   $8000
 *
@@ -30,9 +31,16 @@ PRGRID   LDA   #00
          STA   TEMP       ;ROW
 PRGRID1  LDA   #00
          STA   TEMP+1     ;COLUMN              
-PRGRID2  LDA   #0
+PRGRID2  LDA   TEMP+1
          CLC   
-         ADC   TEMP
+         ADC   GRIDCOL    ;OFFSET
+         STA   CH         ;COLUMN
+         LDA   TEMP
+         JSR   TOLOW      ;LOW BYTE
+         CLC   
+         ADC   GRIDLINE   ;OFFSET
+         JSR   TABV       ;CURSOR
+         LDA   TEMP
          CLC   
          ADC   TEMP+1
          TAX
@@ -200,10 +208,14 @@ ISIN2    LDY   #$FF
 ISIN3    STY   RESULT
          RTS
 *
-LEN      DS    1
-RESULT   DS    1
-GRID     DS    256
-NBOMBS   DS    1
+*MOVES ACC HIGH BYTE TO LOW BYTE
+*USES X
+TOLOW    LDX   #4
+TOLOW1   LSR
+         DEX
+         BEQ   TOLOW2
+         JMP   TOLOW1
+TOLOW2   RTS
 *
 *RANDOM GENERATION
 IRANDOM     LDA   $4E
@@ -221,7 +233,14 @@ RND2     DEY
          BNE   RND1
          STA   RNDSEED
          RTS
-RNDSEED  HEX   CAFE                   
+*
+RNDSEED  HEX   CAFE
+GRIDCOL  HEX   0C
+GRIDLINE HEX   05                     
 *                 
+LEN      DS    1
+RESULT   DS    1
+GRID     DS    256
+NBOMBS   DS    1
 * END OF PROGRAM SINCE SIZE IS UNKWOWN
-LBOMBS   DS    1          
+LBOMBS   DS    1       
