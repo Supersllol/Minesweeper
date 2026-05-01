@@ -10,13 +10,16 @@ CH       EQU   $24
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
-TEMP     EQU   $58        ;5B
-COUNT    EQU   $63        ;1B 
+TEMP     EQU   $58        ;8B
+COUNT    EQU   $60        ;1B
+CURSOR   EQU   $61        ;1B
 *
          ORG   $8000
 *
          LDA   #30
          STA   NBOMBS
+         LDA   #$77
+         STA   CURSOR
          JSR   INIT
          JSR   PRGRID
          RTS
@@ -39,27 +42,54 @@ PRGRID2  LDA   TEMP+1
          JSR   TOLOW      ;LOW BYTE
          CLC   
          ADC   GRIDLINE   ;OFFSET
-         JSR   TABV       ;CURSOR
+         JSR   TABV       ;MOVE CURSOR
          LDA   TEMP
          CLC   
          ADC   TEMP+1
          TAX
-         LDA   GRID,X
-         JSR   PRHEX
+         JSR   GRIDCH
+         CPX   CURSOR     ;IF SELECTED
+         BNE   PRGRID3
+         SEC   
+         SBC   #$40       ;FLASH
+PRGRID3  JSR   COUT
          LDA   TEMP+1
          CMP   #$0F       ;END OF ROW
-         BEQ   PRGRID3
+         BEQ   PRGRID4
          INC   TEMP+1
          JMP   PRGRID2    ;NEXT ELEMENT
-PRGRID3  JSR   CROUT
+PRGRID4  JSR   CROUT
          LDA   TEMP
          CMP   #$F0      ;END OF GRID
-         BEQ   PRGRID4
+         BEQ   PRGRID5
          CLC   
          ADC   #$10
          STA   TEMP
          JMP   PRGRID1    ;RESET COLUMN
-PRGRID4  RTS
+PRGRID5  RTS
+*
+*PUTS IN ACC THE CHAR REPRESENTING
+*THE GRID POS IN X 
+GRIDCH   LDA   GRID,X
+         CMP   #$10
+         BCC   GRIDCH1    ;HIDDEN
+         CMP   #$20
+         BCC   GRIDCH2    ;FLAG
+         CMP   #$2F
+         BNE   GRIDCH3
+         LDA   #$A1       ;BOMB
+         RTS
+GRIDCH1  LDA   #$A3       
+         RTS
+GRIDCH2  LDA   #$BF
+         RTS
+GRIDCH3  AND   #%00001111
+         BEQ   GRIDCH4
+         CLC
+         ADC   #$B0       ;NUMBER
+         RTS
+GRIDCH4  LDA   #$A0
+         RTS
 *
 *CREE LA LISTE DE BOMBES
 IBOMBS   JSR   IRANDOM
@@ -236,7 +266,7 @@ RND2     DEY
 *
 RNDSEED  HEX   CAFE
 GRIDCOL  HEX   0C
-GRIDLINE HEX   05                     
+GRIDLINE HEX   04
 *                 
 LEN      DS    1
 RESULT   DS    1
