@@ -3,30 +3,160 @@ COUT     EQU   $FDED
 PRBYTE   EQU   $FDDA
 PRHEX    EQU   $FDE3
 TABV     EQU   $FB5B
-SETINV   EQU   $FE80
-SETNORM  EQU   $FE84
 CROUT    EQU   $FD8E
 CH       EQU   $24
+RDKEY    EQU   $FD0C
+SETTXT   EQU   $FB33
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
 TEMP     EQU   $58        ;8B
 COUNT    EQU   $60        ;1B
 CURSOR   EQU   $61        ;1B
+NFLAGS   EQU   $62        ;1B
+STATE    EQU   $63        ;1B
 *
          ORG   $8000
 *
          LDA   #30
          STA   NBOMBS
+*
+_INIT    JSR   SETTXT
          LDA   #$77
          STA   CURSOR
-         JSR   INIT
-         JSR   PRGRID
-         RTS
-*
-INIT     JSR   HOME
+         JSR   HOME
          JSR   IBOMBS
          JSR   IGRID
+         LDA   NBOMBS
+         STA   NFLAGS
+         LDA   #0
+         STA   EXPLOCNT
+*
+LOOP     JSR   PRGRID
+         JSR   RDKEY
+         CMP   #$F1       ;q
+         BEQ   QUIT
+         CMP   #$D1       ;Q
+         BEQ   QUIT
+         CMP   #$8D       ;ENTER
+         BEQ   REVEAL
+         CMP   #$A0       ;SPACE
+         BEQ   FLAG
+RELOOP   JMP   LOOP
+*
+QUIT     JSR   HOME
+         RTS
+*
+*FLAGS CHOSEN SPOT 
+FLAG     LDX   CURSOR
+         LDA   GRID,X     ;SPOT
+         CMP   #$10
+         BCC   FLAGADD    ;ADD
+         CMP   #$20
+         BCC   FLAGNO     ;REMOVE
+FLAGEND  JMP   RELOOP
+*
+FLAGADD  LDY   NFLAGS
+         BEQ   FLAGEND    ;NO MORE
+         CLC
+         ADC   #$10       ;FLAG
+         STA   GRID,X
+         DEC   NFLAGS
+         JMP   FLAGEND
+*
+FLAGNO   SEC
+         SBC   #$10       ;REMOVE
+         STA   GRID,X
+         INC   NFLAGS
+         JMP   FLAGEND
+*
+*REVEALS CHOSEN SPOT
+REVEAL   LDA   #0
+         STA   NEXTCNT
+         LDX   CURSOR
+         LDA   GRID,X
+         CMP   #$10       
+         BCS   RELOOP     ;FLAG OR REVEALED
+REVEAL1  JSR   EXPLORE
+         LDX   NEXTCNT
+         BEQ   REVEAL2    ;NO MORE
+         DEC   NEXTCNT
+         LDX   NEXTCNT
+         LDA   LNEXT,X      ;FIRST IN PILE
+         TAX
+         JMP   REVEAL1
+REVEAL2  JMP   RELOOP
+*
+*REVEALS SPOT IN X AND ADDS UNEXPLORED
+*NEIGHBORS TO LNEXT WITH NEXTCNT INC
+EXPLORE  LDA   GRID,X     ;LOAD CONTENTS
+         CMP   #$20
+         BCC   EXPLORE1   ;NOT REVEALED YET
+         RTS
+EXPLORE1 TXA
+         LDX   EXPLOCNT
+         STA   LEXPLORE,X ;SAVE SPOT
+         INC   EXPLOCNT
+         TAX
+         LDA   GRID,X
+         CLC
+         CMP   #$10
+         BCC   EXPLORE2   ;NOT FLAG
+         ADC   #$10
+         INC   NFLAGS     ;INC COUNT
+         JMP   EXPLORE3
+EXPLORE2 ADC   #$20
+EXPLORE3 STA   GRID,X     ;UPDATE
+         AND   #%00001111 ;LOW BYTE
+         BEQ   ADDNEXT    ;IF EMPTY
+         CMP   #$0F
+         BEQ   EXPLORE4
+         RTS
+EXPLORE4 LDA   #1
+         STA   STATE
+         RTS
+*
+ADDNEXT  TXA
+         JSR   VOISINS
+         LDA   RESULT
+         STA   TEMP       ;NB VOISINS
+         LDX   #0         ;LOOP COUNTER
+ADDNEXT1 JSR   ISNEXT
+         LDA   RESULT
+         CMP   #$FF
+         BNE   ADDNEXT2   ;ALREADY IN THERE
+         JSR   ISEXPLO
+         LDA   RESULT
+         CMP   #$FF
+         BNE   ADDNEXT2   ;ALREADY IN THERE
+         LDA   LVOISINS,X
+         LDY   NEXTCNT
+         STA   LNEXT,Y    ;ADD TO LIST
+         INC   NEXTCNT
+ADDNEXT2 INX 
+         CPX   TEMP
+         BEQ   ADDNEXT3   ;DONE
+         JMP   ADDNEXT1
+ADDNEXT3 RTS
+*
+ISNEXT   LDY   #LNEXT
+         STY   PTR
+         LDY   #>LNEXT
+         STY   PTR+1
+         LDY   NEXTCNT
+         STY   LEN
+         LDA   LVOISINS,X
+         JSR   ISIN
+         RTS
+*
+ISEXPLO  LDY   #LEXPLORE
+         STY   PTR
+         LDY   #>LEXPLORE
+         STY   PTR+1
+         LDY   EXPLOCNT
+         STY   LEN
+         LDA   LVOISINS,X
+         JSR   ISIN
          RTS
 *
 *PRINTS THE GRID TO THE SCREEN
@@ -128,7 +258,7 @@ IGRIDNXT LDX   COUNT
          JMP   IGRID1
 IGRIDEND RTS
 *
-*LOAD BOMB COUNT AROUND SPOT TO ACC
+*LOAD BOMB COUNT AROUND ACC SPOT TO ACC
 CNTBMBS  JSR   VOISINS    ;LOAD LIST, AND NUMBER TO RESULT
          LDA   RESULT
          STA   TEMP+1
@@ -145,9 +275,9 @@ CNTBMBS2 INX
 CNTBMBS3 LDA   TEMP
          RTS
 *
-*STORE VOISINS OF SPOT IN LVOISINS,
+*STORE VOISINS OF ACC SPOT IN LVOISINS,
 *NUMBER IN RESULT
-VOISINS  STA   RESULT     ;RESULT HAS ORIGINAL SPOT
+VOISINS  STA   TEMP+5     ;TEMP+5 HAS ORIGINAL SPOT
          CMP   #$10
          BCS   VOISINSA   
          LDX   #$FF       ;SKIP MINUS ROW IF ROW 0
@@ -162,17 +292,17 @@ VOISINS2 STX   TEMP+2     ;TEMP+2 HAS MAX ROW COUNTER
 VOISINS3 LDX   #2
 VOISINS4 STX   TEMP+3     ;TEMP+3 HAS MAX COLUMN COUNTER
          LDA   #0
-         STA   LEN
-VOISINS5 LDA   RESULT
+         STA   RESULT
+VOISINS5 LDA   TEMP+5
          CLC   
          ADC   TEMP
          CLC
          ADC   TEMP+4
-         CMP   RESULT     
+         CMP   TEMP+5     
          BEQ   VOISINS6   ;IF NEW SPOT IS ORIGINAL SPOT
-         LDX   LEN
+         LDX   RESULT
          STA   LVOISINS,X ;SAVE TO LIST
-         INC   LEN
+         INC   RESULT
 VOISINS6 LDA   TEMP+4
          CMP   TEMP+3
          BEQ   VOISINS7   ;IF AT MAX COLUMN
@@ -187,9 +317,7 @@ VOISINS7 LDA   TEMP
          LDA   TEMP+1     
          STA   TEMP+4     ;RESTART COLUMN COUNTER
          JMP   VOISINS5
-VOISINS8 LDA   LEN
-         STA   RESULT
-         RTS
+VOISINS8 RTS
 *
 VOISINSA LDX   #$EF
          STX   TEMP
@@ -248,7 +376,7 @@ TOLOW1   LSR
 TOLOW2   RTS
 *
 *RANDOM GENERATION
-IRANDOM     LDA   $4E
+IRANDOM  LDA   $4E
          ORA   #$1
          STA   RNDSEED
          LDA   $4F
@@ -271,6 +399,10 @@ GRIDLINE HEX   04
 LEN      DS    1
 RESULT   DS    1
 GRID     DS    256
+LEXPLORE DS    256
+EXPLOCNT DS    1
+LNEXT     DS    256
+NEXTCNT  DS    1
 NBOMBS   DS    1
 * END OF PROGRAM SINCE SIZE IS UNKWOWN
-LBOMBS   DS    1       
+LBOMBS   DS    1
