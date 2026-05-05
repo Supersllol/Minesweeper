@@ -29,8 +29,6 @@ _INIT    JSR   SETTXT
          JSR   IGRID
          LDA   NBOMBS
          STA   NFLAGS
-         LDA   #0
-         STA   EXPLOCNT
 *
 LOOP     JSR   PRGRID
          JSR   RDKEY
@@ -82,23 +80,14 @@ REVEAL1  JSR   EXPLORE
          BEQ   REVEAL2    ;NO MORE
          DEC   NEXTCNT
          LDX   NEXTCNT
-         LDA   LNEXT,X      ;FIRST IN PILE
-         TAX
+         LDA   LNEXT,X    ;FIRST IN PILE
+         TAX              ;SAVE SPOT
          JMP   REVEAL1
 REVEAL2  JMP   RELOOP
 *
 *REVEALS SPOT IN X AND ADDS UNEXPLORED
 *NEIGHBORS TO LNEXT WITH NEXTCNT INC
-EXPLORE  LDA   GRID,X     ;LOAD CONTENTS
-         CMP   #$20
-         BCC   EXPLORE1   ;NOT REVEALED YET
-         RTS
-EXPLORE1 TXA
-         LDX   EXPLOCNT
-         STA   LEXPLORE,X ;SAVE SPOT
-         INC   EXPLOCNT
-         TAX
-         LDA   GRID,X
+EXPLORE  LDA   GRID,X
          CLC
          CMP   #$10
          BCC   EXPLORE2   ;NOT FLAG
@@ -109,7 +98,7 @@ EXPLORE2 ADC   #$20
 EXPLORE3 STA   GRID,X     ;UPDATE
          AND   #%00001111 ;LOW BYTE
          BEQ   ADDNEXT    ;IF EMPTY
-         CMP   #$0F
+         CMP   #$0F       ;BOMB
          BEQ   EXPLORE4
          RTS
 EXPLORE4 LDA   #1
@@ -121,15 +110,15 @@ ADDNEXT  TXA
          LDA   RESULT
          STA   TEMP       ;NB VOISINS
          LDX   #0         ;LOOP COUNTER
-ADDNEXT1 JSR   ISNEXT
-         LDA   RESULT
-         CMP   #$FF
+ADDNEXT1 LDA   LVOISINS,X 
+         TAY    
+         LDA   GRID,Y     ;LOAD CONTENTS
+         CMP   #$20
+         BCS   ADDNEXT2   ;ALREADY EXPLORED
+         JSR   ISNEXT
+         LDY   RESULT
+         CPY   #$FF
          BNE   ADDNEXT2   ;ALREADY IN THERE
-         JSR   ISEXPLO
-         LDA   RESULT
-         CMP   #$FF
-         BNE   ADDNEXT2   ;ALREADY IN THERE
-         LDA   LVOISINS,X
          LDY   NEXTCNT
          STA   LNEXT,Y    ;ADD TO LIST
          INC   NEXTCNT
@@ -144,16 +133,6 @@ ISNEXT   LDY   #LNEXT
          LDY   #>LNEXT
          STY   PTR+1
          LDY   NEXTCNT
-         STY   LEN
-         LDA   LVOISINS,X
-         JSR   ISIN
-         RTS
-*
-ISEXPLO  LDY   #LEXPLORE
-         STY   PTR
-         LDY   #>LEXPLORE
-         STY   PTR+1
-         LDY   EXPLOCNT
          STY   LEN
          LDA   LVOISINS,X
          JSR   ISIN
@@ -399,9 +378,7 @@ GRIDLINE HEX   04
 LEN      DS    1
 RESULT   DS    1
 GRID     DS    256
-LEXPLORE DS    256
-EXPLOCNT DS    1
-LNEXT     DS    256
+LNEXT    DS    256
 NEXTCNT  DS    1
 NBOMBS   DS    1
 * END OF PROGRAM SINCE SIZE IS UNKWOWN
