@@ -142,22 +142,47 @@ MOVEBMB1 LDA   GRID,X
          INX   
          JMP   MOVEBMB1
 MOVEBMB2 LDA   #$0F
-         STA   GRID,X     ;SAVE NEW BOMB
+         STA   GRID,X     ;PUT NEW BOMB
          STX   TEMP+7     ;NEW SPOT
+         JSR   REPLACE
+         LDY   #1         ;WANT TO ADD 1
+         JSR   NEWVOIS    ;UPDATE VOISINS
          LDA   TEMP+6
-         JSR   ISBOMB
-         LDX   RESULT     ;POSITION
-         LDA   TEMP+7
-         STA   LBOMBS,X   ;REPLACE
-         JSR   IGRID
+         LDY   #$FF       ;WANT TO SUB 1
+         JSR   NEWVOIS
+         LDA   TEMP+6
+         JSR   CNTBMBS
          LDX   TEMP+6
-         LDA   GRID,X     ;RELOAD OLD SPOT
-         CLC
-         ADC   #$20       ;REVEAL
+         CLC   
+         ADC   #$20
          STA   GRID,X
          CMP   #$20
          BEQ   ADDNEXT    ;IF EMPTY
          RTS
+*
+REPLACE  LDA   TEMP+6
+         JSR   ISBOMB
+         LDX   RESULT     ;POSITION
+         LDA   TEMP+7
+         STA   LBOMBS,X   ;REPLACE
+         RTS
+*
+NEWVOIS  JSR   VOISINS
+         STY   TEMP       ;SAVE WHAT TO ADD
+         LDX   #0
+NEWVOIS1 LDA   LVOISINS,X
+         TAY   
+         LDA   GRID,Y
+         CMP   #$0F       ;IF BOMB, SKIP
+         BEQ   NEWVOIS2
+         CLC   
+         ADC   TEMP       ;OFFSET
+         STA   GRID,Y     ;UPDATE 
+NEWVOIS2 INX
+         CPX   RESULT
+         BEQ   NEWVOIS3   ;IF DONE
+         JMP   NEWVOIS1
+NEWVOIS3 RTS
 *
 ADDNEXT  TXA
          JSR   VOISINS
