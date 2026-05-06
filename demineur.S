@@ -24,17 +24,20 @@ STATE    EQU   $63        ;1B
 _INIT    JSR   SETTXT
          LDA   #$77
          STA   CURSOR
-         JSR   HOME
          JSR   IBOMBS
          JSR   IGRID
          LDA   NBOMBS
          STA   NFLAGS
+         LDA   #0
+         STA   NEXPLORE
+         STA   STATE
+         JSR   HOME
+         JSR   PRGRID
 *
-LOOP     JSR   PRGRID
-         JSR   RDKEY
-         CMP   #$F1       ;q
+LOOP     JSR   RDKEY
+         CMP   #"Q"
          BEQ   QUIT
-         CMP   #$D1       ;Q
+         CMP   #"q"
          BEQ   QUIT
          CMP   #$8D       ;ENTER
          BEQ   REVEAL
@@ -52,7 +55,9 @@ FLAG     LDX   CURSOR
          BCC   FLAGADD    ;ADD
          CMP   #$20
          BCC   FLAGNO     ;REMOVE
-FLAGEND  JMP   RELOOP
+FLAGEND  JSR   PRGRID
+         JSR   PRFLAG
+         JMP   RELOOP
 *
 FLAGADD  LDY   NFLAGS
          BEQ   FLAGEND    ;NO MORE
@@ -68,6 +73,26 @@ FLAGNO   SEC
          INC   NFLAGS
          JMP   FLAGEND
 *
+ISOVER   JSR   PRGRID
+         JSR   PRFLAG
+         LDA   #0
+         SEC   
+         SBC   NBOMBS
+         CMP   NEXPLORE
+         BEQ   WIN        ;IF EXPLORED ALL
+         LDA   STATE
+         BNE   LOSE       ;IF BOMB FOUND
+         JMP   RELOOP
+*
+WIN      LDA   #"W"
+         JSR   COUT
+         RTS
+*
+LOSE     JSR   PRBOMB
+         LDA   #"L"
+         JSR   COUT
+         RTS
+*
 *REVEALS CHOSEN SPOT
 REVEAL   LDA   #0
          STA   NEXTCNT
@@ -77,13 +102,12 @@ REVEAL   LDA   #0
          BCS   RELOOP     ;FLAG OR REVEALED
 REVEAL1  JSR   EXPLORE
          LDX   NEXTCNT
-         BEQ   REVEAL2    ;NO MORE
+         BEQ   ISOVER    ;NO MORE
          DEC   NEXTCNT
          LDX   NEXTCNT
          LDA   LNEXT,X    ;FIRST IN PILE
          TAX              ;SAVE SPOT
          JMP   REVEAL1
-REVEAL2  JMP   RELOOP
 *
 *REVEALS SPOT IN X AND ADDS UNEXPLORED
 *NEIGHBORS TO LNEXT WITH NEXTCNT INC
@@ -96,6 +120,7 @@ EXPLORE  LDA   GRID,X
          JMP   EXPLORE3
 EXPLORE2 ADC   #$20
 EXPLORE3 STA   GRID,X     ;UPDATE
+         INC   NEXPLORE
          AND   #%00001111 ;LOW BYTE
          BEQ   ADDNEXT    ;IF EMPTY
          CMP   #$0F       ;BOMB
@@ -176,6 +201,23 @@ PRGRID4  JSR   CROUT
          STA   TEMP
          JMP   PRGRID1    ;RESET COLUMN
 PRGRID5  RTS
+*
+PRFLAG   RTS
+*
+*REVEALS ALL BOMBS AND REPRINTS THE GRID
+PRBOMB   LDX   #0
+PRBOMB1  LDA   GRID,X
+         AND   #%00001111 ;LOW BYTE
+         CMP   #$0F
+         BNE   PRBOMB2
+         CLC
+         ADC   #$20       ;REVEAL
+         STA   GRID,X     ;UPDATE
+PRBOMB2  INX
+         BEQ   PRBOMB3    ;IF OVERFLOWED
+         JMP   PRBOMB1
+PRBOMB3  JSR   PRGRID
+         RTS
 *
 *PUTS IN ACC THE CHAR REPRESENTING
 *THE GRID POS IN X 
@@ -381,5 +423,6 @@ GRID     DS    256
 LNEXT    DS    256
 NEXTCNT  DS    1
 NBOMBS   DS    1
+NEXPLORE DS    1
 * END OF PROGRAM SINCE SIZE IS UNKWOWN
 LBOMBS   DS    1
