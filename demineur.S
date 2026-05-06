@@ -22,7 +22,7 @@ STATE    EQU   $63        ;1B
          STA   NBOMBS
 *
 _INIT    JSR   SETTXT
-         LDA   #$77
+         LDA   #$11
          STA   CURSOR
          JSR   IBOMBS
          JSR   IGRID
@@ -125,9 +125,38 @@ EXPLORE3 STA   GRID,X     ;UPDATE
          BEQ   ADDNEXT    ;IF EMPTY
          CMP   #$0F       ;BOMB
          BEQ   EXPLORE4
+         RTS              ;IF NUMBER, OVER
+EXPLORE4 LDA   NEXPLORE
+         CMP   #1
+         BEQ   MOVEBMB   ;IF FIRST MOVE
+         LDA   #1
+         STA   STATE      ;LOSE
          RTS
-EXPLORE4 LDA   #1
-         STA   STATE
+*
+MOVEBMB  STX   TEMP+6     ;OLD SPOT
+         LDX   #0
+         JSR   PRBYTE
+MOVEBMB1 LDA   GRID,X
+         CMP   #$0F
+         BCC   MOVEBMB2   ;IF CLEAR
+         INX   
+         JMP   MOVEBMB1
+MOVEBMB2 LDA   #$0F
+         STA   GRID,X     ;SAVE NEW BOMB
+         STX   TEMP+7     ;NEW SPOT
+         LDA   TEMP+6
+         JSR   ISBOMB
+         LDX   RESULT     ;POSITION
+         LDA   TEMP+7
+         STA   LBOMBS,X   ;REPLACE
+         JSR   IGRID
+         LDX   TEMP+6
+         LDA   GRID,X     ;RELOAD OLD SPOT
+         CLC
+         ADC   #$20       ;REVEAL
+         STA   GRID,X
+         CMP   #$20
+         BEQ   ADDNEXT    ;IF EMPTY
          RTS
 *
 ADDNEXT  TXA
@@ -267,6 +296,8 @@ IGRID    LDA   #0
          STA   COUNT
 IGRID1   LDA   COUNT      ;LOAD CURRENT SPOT
          JSR   ISBOMB
+         LDY   RESULT
+         CPY   #$FF
          BEQ   IGRID2     ;IF NOT BOMB
          LDA   #$0F
          JMP   IGRIDNXT
@@ -287,6 +318,8 @@ CNTBMBS  JSR   VOISINS    ;LOAD LIST, AND NUMBER TO RESULT
          STX   TEMP
 CNTBMBS1 LDA   LVOISINS,X
          JSR   ISBOMB
+         LDY   RESULT
+         CPY   #$FF
          BEQ   CNTBMBS2   ;NO BOMB
          INC   TEMP       ;BOMB COUNTER++
 CNTBMBS2 INX
@@ -356,7 +389,7 @@ VOISINSB LDX   #0
          JMP   VOISINS4
 *
 *CHECK IF POS IN ACC IS BOMB,
-*1 OR 0 IN RESULT
+*POS OR $FF IF NOT FOUND IN RESULT
 ISBOMB   LDY   #LBOMBS
          STY   PTR
          LDY   #>LBOMBS
@@ -364,13 +397,6 @@ ISBOMB   LDY   #LBOMBS
          LDY   NBOMBS
          STY   LEN
          JSR   ISIN
-         LDY   RESULT
-         CPY   #$FF       
-         BEQ   ISBOMB1    ;IF NOT FOUND
-         LDY   #1
-         JMP   ISBOMB2
-ISBOMB1  LDY   #0
-ISBOMB2  STY   RESULT
          RTS
 *
 *CHECK IF ACC IN LIST PTR
