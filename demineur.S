@@ -116,13 +116,13 @@ FLAGNO   SEC
 *
 ISOVER   JSR   PRGRID
          JSR   PRFLAG
+         LDA   STATE
+         BNE   LOSE       ;IF BOMB FOUND
          LDA   #0
          SEC   
          SBC   NBOMBS
          CMP   NEXPLORE
          BEQ   WIN        ;IF EXPLORED ALL
-         LDA   STATE
-         BNE   LOSE       ;IF BOMB FOUND
          JMP   RELOOP
 *
 WIN      LDA   #"W"
@@ -130,6 +130,7 @@ WIN      LDA   #"W"
          RTS
 *
 LOSE     JSR   PRBOMB
+         JSR   BELL
          LDA   #"L"
          JSR   COUT
          RTS
