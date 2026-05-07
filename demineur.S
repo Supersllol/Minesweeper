@@ -7,6 +7,7 @@ CROUT    EQU   $FD8E
 CH       EQU   $24
 RDKEY    EQU   $FD0C
 SETTXT   EQU   $FB33
+BELL     EQU   $FF3A
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
@@ -16,13 +17,16 @@ CURSOR   EQU   $61        ;1B
 NFLAGS   EQU   $62        ;1B
 STATE    EQU   $63        ;1B
 *
+GRIDCOL  EQU   $0C
+GRIDLINE EQU   $03
+*
          ORG   $8000
 *
-         LDA   #30
+         LDA   #10
          STA   NBOMBS
 *
 _INIT    JSR   SETTXT
-         LDA   #$11
+         LDA   #$77
          STA   CURSOR
          JSR   IBOMBS
          JSR   IGRID
@@ -32,21 +36,58 @@ _INIT    JSR   SETTXT
          STA   NEXPLORE
          STA   STATE
          JSR   HOME
+         JSR   PRNAME
+         JSR   PROUTL
          JSR   PRGRID
 *
 LOOP     JSR   RDKEY
          CMP   #"Q"
          BEQ   QUIT
-         CMP   #"q"
-         BEQ   QUIT
+         CMP   #"W"
+         BEQ   INPUTW
+         CMP   #"A"
+         BEQ   INPUTA
+         CMP   #"S"
+         BEQ   INPUTS
+         CMP   #"D"
+         BEQ   INPUTD
          CMP   #$8D       ;ENTER
-         BEQ   REVEAL
+         BEQ   IREVEAL
          CMP   #$A0       ;SPACE
          BEQ   FLAG
 RELOOP   JMP   LOOP
 *
 QUIT     JSR   HOME
          RTS
+*
+INPUTW   LDA   CURSOR
+         SEC
+         SBC   #$10
+         STA   CURSOR
+         JMP   INPUTEND
+*
+INPUTA   LDA   CURSOR
+         SEC
+         SBC   #$01
+         STA   CURSOR
+         JMP   INPUTEND
+*
+INPUTS   LDA   CURSOR
+         CLC
+         ADC   #$10
+         STA   CURSOR
+         JMP   INPUTEND
+*
+INPUTD   LDA   CURSOR
+         CLC
+         ADC   #$01
+         STA   CURSOR
+         JMP   INPUTEND
+*
+INPUTEND JSR   PRGRID     ;WILL RELOOP AFTER
+*
+IRELOOP  JMP   RELOOP     ;FOR JUMP RANGE
+IREVEAL  JMP   REVEAL
 *
 *FLAGS CHOSEN SPOT 
 FLAG     LDX   CURSOR
@@ -99,7 +140,7 @@ REVEAL   LDA   #0
          LDX   CURSOR
          LDA   GRID,X
          CMP   #$10       
-         BCS   RELOOP     ;FLAG OR REVEALED
+         BCS   IRELOOP     ;FLAG OR REVEALED
 REVEAL1  JSR   EXPLORE
          LDX   NEXTCNT
          BEQ   ISOVER    ;NO MORE
@@ -217,6 +258,71 @@ ISNEXT   LDY   #LNEXT
          JSR   ISIN
          RTS
 *
+*AFFICHE LE TITRE A L'ECRAN
+PRNAME   JSR   HOME       ; ECRITURE TITRE
+         LDA   #16
+         STA   CH                  
+         LDA   #GRIDLINE-2                  
+         JSR   TABV                
+         LDX   #0                  
+PRNAME1  LDA   TITRE,X             
+         CMP   #$AA                
+         BEQ   PRNAME2                 
+         JSR   COUT                
+         INX                      
+         BNE   PRNAME1
+PRNAME2  RTS
+*
+*PRINTS THE GRID OUTLINE
+PROUTL   LDA   #GRIDLINE-2 ;2 PARCE QUE VA INCREMENTER
+         STA   TEMP       ;TEMP A LA LIGNE
+PROUTL1  LDX   #0         ;CONTOUR
+         INC   TEMP
+         LDA   #GRIDCOL-1 ;1 DERRIERE LA GRILLE
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COIN
+         JSR   COUT
+*
+PRTOP    LDA   HAUT   
+         JSR   COUT       ; 1. On affiche le tiret '-'
+         INX              ; 2. On augmente le compteur X
+         CPX   #16       ; 3. On regarde si on a atteint 16
+         BNE   PRTOP       ; 4. On boucle (BNE regarde directement le CPX !)
+* 
+         LDA   COIN
+         JSR   COUT       ; On affiche le '+' de droite
+* 
+         LDA   TEMP
+         SEC
+         SBC   #GRIDLINE-1
+         CMP   #$11       ; Est-ce qu'on vient de dessiner le bas
+         BEQ   PROUTL2     ; SI OUI LE CONTOUR EST FINI
+*
+PRSIDE   INC   TEMP
+         LDA   #GRIDCOL-1
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COTE
+         JSR   COUT
+         LDA   #GRIDCOL-1
+         CLC
+         ADC   #$11       ; $11 en hex = 17 en décimal (largeur de votre grille)
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COTE
+         JSR   COUT
+         LDA   TEMP
+         SEC
+         SBC   #GRIDLINE-1
+         CMP   #$10       ; A-t-on dessiné 16 lignes de murs 
+         BEQ   PROUTL1    ; Si oui, on saute pour dessiner le plancher
+         BNE   PRSIDE     ; Sinon, on boucle pour le prochain mur
+PROUTL2  RTS
+*
 *PRINTS THE GRID TO THE SCREEN
 PRGRID   LDA   #00
          STA   TEMP       ;ROW
@@ -224,12 +330,12 @@ PRGRID1  LDA   #00
          STA   TEMP+1     ;COLUMN              
 PRGRID2  LDA   TEMP+1
          CLC   
-         ADC   GRIDCOL    ;OFFSET
+         ADC   #GRIDCOL    ;OFFSET
          STA   CH         ;COLUMN
          LDA   TEMP
          JSR   TOLOW      ;LOW BYTE
          CLC   
-         ADC   GRIDLINE   ;OFFSET
+         ADC   #GRIDLINE   ;OFFSET
          JSR   TABV       ;MOVE CURSOR
          LDA   TEMP
          CLC   
@@ -465,8 +571,10 @@ RND2     DEY
          RTS
 *
 RNDSEED  HEX   CAFE
-GRIDCOL  HEX   0C
-GRIDLINE HEX   04
+COIN     ASC  "+"
+HAUT     ASC  "-"
+COTE     ASC  "|"
+TITRE    ASC  "DEMINEUR*"
 *                 
 LEN      DS    1
 RESULT   DS    1

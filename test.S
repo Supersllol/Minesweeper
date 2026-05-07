@@ -14,99 +14,62 @@ TEMP     EQU   $58        ;8B
 COUNT    EQU   $60        ;1B
 CURSOR   EQU   $61        ;1B
 *
+GRIDCOL  EQU   $0C
+GRIDLINE EQU   $04
+*
          ORG   $8000
 *
          JSR   HOME
-         LDA   #0
-         STA   CURSOR
-         LDA   #$1F
-         STA   GRID
-         LDA   #$2F
-         STA   GRID+1
-         LDA   #$28
-         STA   GRID+2
-         LDA   #$20
-         STA   GRID+3
-         JSR   PRGRID
-         RTS
+*PRINTS THE GRID OUTLINE
+PROUTL   LDA   #GRIDLINE-2 ;2 PARCE QUE VA INCREMENTER
+         STA   TEMP       ;TEMP A LA LIGNE
+PROUTL1  LDX   #0         ;CONTOUR
+         INC   TEMP
+         LDA   #GRIDCOL-1 ;1 DERRIERE LA GRILLE
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COIN
+         JSR   COUT
 *
-*PRINTS THE GRID TO THE SCREEN
-PRGRID   LDA   #00
-         STA   TEMP       ;ROW
-PRGRID1  LDA   #00
-         STA   TEMP+1     ;COLUMN              
-PRGRID2  LDA   TEMP+1
-         CLC   
-         ADC   GRIDCOL    ;OFFSET
-         STA   CH         ;COLUMN
+PRTOP    LDA   HAUT   
+         JSR   COUT       ; 1. On affiche le tiret '-'
+         INX              ; 2. On augmente le compteur X
+         CPX   #16       ; 3. On regarde si on a atteint 16
+         BNE   PRTOP       ; 4. On boucle (BNE regarde directement le CPX !)
+* 
+         LDA   COIN
+         JSR   COUT       ; On affiche le '+' de droite
+* 
          LDA   TEMP
-         JSR   TOLOW      ;LOW BYTE
-         CLC   
-         ADC   GRIDLINE   ;OFFSET
-         JSR   TABV       ;MOVE CURSOR
-         LDA   TEMP
-         CLC   
-         ADC   TEMP+1
-         TAX
-         JSR   GRIDCH
-         CPX   CURSOR     ;IF SELECTED
-         BNE   PRGRID3
-         SEC   
-         SBC   #$40       ;FLASH
-PRGRID3  JSR   COUT
-         LDA   TEMP+1
-         CMP   #$0F       ;END OF ROW
-         BEQ   PRGRID4
-         INC   TEMP+1
-         JMP   PRGRID2    ;NEXT ELEMENT
-PRGRID4  JSR   CROUT
-         LDA   TEMP
-         CMP   #$F0      ;END OF GRID
-         BEQ   PRGRID5
-         CLC   
-         ADC   #$10
-         STA   TEMP
-         JMP   PRGRID1    ;RESET COLUMN
-PRGRID5  RTS
+         SEC
+         SBC   #GRIDLINE
+         CMP   #$11       ; Est-ce qu'on vient de dessiner le bas
+         BEQ   PROUTL2     ; SI OUI LE CONTOUR EST FINI
 *
-*PUTS IN ACC THE CHAR REPRESENTING
-*THE GRID POS IN X 
-GRIDCH   LDA   GRID,X
-         CMP   #$10
-         BCC   GRIDCH1    ;HIDDEN
-         CMP   #$20
-         BCC   GRIDCH2    ;FLAG
-         CMP   #$2F
-         BNE   GRIDCH3
-         LDA   #$A1       ;BOMB
-         RTS
-GRIDCH1  LDA   #$A3       
-         RTS
-GRIDCH2  LDA   #$BF
-         RTS
-GRIDCH3  AND   #%00001111
-         BEQ   GRIDCH4
+PRSIDE   INC   TEMP
+         LDA   #GRIDCOL-1
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COTE
+         JSR   COUT
+         LDA   #GRIDCOL-1
          CLC
-         ADC   #$B0       ;NUMBER
-         RTS
-GRIDCH4  LDA   #$A0
-         RTS
+         ADC   #$11       ; $11 en hex = 17 en décimal (largeur de votre grille)
+         STA   CH
+         LDA   TEMP
+         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         LDA   COTE
+         JSR   COUT
+         LDA   TEMP
+         SEC
+         SBC   #GRIDLINE
+         CMP   #$10       ; A-t-on dessiné 16 lignes de murs 
+         BEQ   PROUTL1    ; Si oui, on saute pour dessiner le plancher
+         BNE   PRSIDE     ; Sinon, on boucle pour le prochain mur
+PROUTL2  RTS
 *
-*MOVES ACC HIGH BYTE TO LOW BYTE
-*USES X
-TOLOW    LDX   #4
-TOLOW1   LSR
-         DEX
-         BEQ   TOLOW2
-         JMP   TOLOW1
-TOLOW2   RTS
-*       
-GRIDCOL  HEX   0C
-GRIDLINE HEX   05
-LEN      DS    1
-RESULT   DS    1
-GRID     DS    256
-NBOMBS   DS    1
-*               
-* END OF PROGRAM SINCE SIZE IS UNKWOWN
-LBOMBS   DS    1          
+COIN     ASC  "+"
+HAUT     ASC  "-"
+COTE     ASC  "|"
