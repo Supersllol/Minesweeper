@@ -1,0 +1,70 @@
+*AFFICHAGE INITIAL DE LA GRILLE
+ 
+CH EQU $24
+COUT EQU $FDED
+TABV EQU $FB5B
+HOME EQU $FC58
+CROUT EQU $FD8E
+SETINV EQU $FE80
+SETNORM EQU $FE84
+ 
+ ORG $8000
+ 
+ JSR HOME
+ LDA #16
+ STA CH                  
+ LDA #2                  
+ JSR TABV                
+ LDX #0                  
+TITR LDA TITRE,X             
+ CMP #$C1                
+ BEQ OUT                 
+ JSR COUT                
+ INX                      
+ BNE TITR                
+ 
+OUT LDX #0                  
+ LDA COL                 
+ STA CH                  
+ LDA LIGNE               
+ JSR TABV                
+ 
+CONTOUR LDA PRE,X               
+ CPX #18                 
+ BEQ NEXT                
+ JSR COUT                
+ INX                      
+ BNE CONTOUR             
+ 
+NEXT LDX #0                  
+ LDA COL                 
+ STA CH                 
+ INC LIGNE               
+ LDA LIGNE               
+ JSR TABV                
+ LDA LIGNE               
+ CMP #19                 
+ BEQ CONTOUR             
+ CMP #20                 
+ BEQ FINI                
+ 
+ LDA #$FC
+ JSR COUT
+ 
+ECRIT LDA DATA                
+ CPX #16                 
+ BEQ EXTRA               
+ JSR COUT                
+ INX                      
+ BNE ECRIT               
+ 
+EXTRA LDA #$FC                
+ JSR COUT                
+ BEQ NEXT                
+FINI RTS                      
+ 
+COL HEX 0B                  
+LIGNE HEX 04                  
+PRE ASC "+----------------+"
+DATA HEX FF                  
+TITRE ASC "DEMINEURA"         
