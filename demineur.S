@@ -67,6 +67,16 @@ INPUTW   LDA   CURSOR
          JMP   INPUTEND
 *
 INPUTA   LDA   CURSOR
+         AND   #%00001111
+         BEQ   SPCA
+         LDA   CURSOR
+         SEC
+         SBC   #$01
+         STA   CURSOR
+         JMP   INPUTEND
+SPCA     LDA   CURSOR
+         CLC
+         ADC   #$10
          SEC
          SBC   #$01
          STA   CURSOR
@@ -79,6 +89,17 @@ INPUTS   LDA   CURSOR
          JMP   INPUTEND
 *
 INPUTD   LDA   CURSOR
+         AND   #%00001111
+         CMP   #$0F
+         BEQ   SPCD
+         LDA   CURSOR
+         CLC
+         ADC   #$01
+         STA   CURSOR
+         JMP   INPUTEND
+SPCD     LDA   CURSOR
+         SEC
+         SBC   #$10
          CLC
          ADC   #$01
          STA   CURSOR
