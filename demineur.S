@@ -1,13 +1,12 @@
 HOME     EQU   $FC58
 COUT     EQU   $FDED
-PRBYTE   EQU   $FDDA
-PRHEX    EQU   $FDE3
 TABV     EQU   $FB5B
 CROUT    EQU   $FD8E
 CH       EQU   $24
 RDKEY    EQU   $FD0C
 SETTXT   EQU   $FB33
 BELL     EQU   $FF3A
+WAIT     EQU   $FCA8
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
@@ -25,7 +24,7 @@ GRIDLINE EQU   $03
          LDA   #10
          STA   NBOMBS
 *
-_INIT    JSR   SETTXT
+INIT     JSR   SETTXT
          LDA   #$77
          STA   CURSOR
          JSR   IBOMBS
@@ -52,13 +51,16 @@ LOOP     JSR   RDKEY
          CMP   #"D"
          BEQ   INPUTD
          CMP   #$8D       ;ENTER
-         BEQ   IREVEAL
+         BEQ   JREVEAL
          CMP   #$A0       ;SPACE
-         BEQ   FLAG
+         BEQ   JFLAG
 RELOOP   JMP   LOOP
 *
 QUIT     JSR   HOME
          RTS
+*
+JREVEAL  JMP   REVEAL     ;FOR RANGE
+JFLAG    JMP   FLAG       ;FOR RANGE
 *
 INPUTW   LDA   CURSOR
          SEC
@@ -105,10 +107,27 @@ SPCD     LDA   CURSOR
          STA   CURSOR
          JMP   INPUTEND
 *
-INPUTEND JSR   PRGRID     ;WILL RELOOP AFTER
+INPUTEND JSR   PRGRID
+         JMP   RELOOP
 *
-IRELOOP  JMP   RELOOP     ;FOR JUMP RANGE
-IREVEAL  JMP   REVEAL
+JINIT    JMP   INIT       ; FOR RANGE
+*
+*ASKS THE USER TO REPLAY OR QUIT
+REPLAY   LDA   #0
+         STA   CH                  
+         LDA   #GRIDLINE+19
+         JSR   TABV                
+         LDA   #TXTREPL
+         STA   PTR
+         LDA   #>TXTREPL
+         STA   PTR+1
+         JSR   PRINT
+REPLAY1  JSR   RDKEY
+         CMP   #"Q"
+         BEQ   QUIT
+         CMP   #"R"
+         BEQ   JINIT
+         JMP   REPLAY1
 *
 *FLAGS CHOSEN SPOT 
 FLAG     LDX   CURSOR
@@ -146,16 +165,35 @@ ISOVER   JSR   PRGRID
          BEQ   WIN        ;IF EXPLORED ALL
          JMP   RELOOP
 *
-WIN      LDA   #"W"
-         JSR   COUT
-         RTS
+WIN      LDA   #0
+         STA   CH                  
+         LDA   #GRIDLINE+18
+         JSR   TABV                
+         LDA   #TXTWIN
+         STA   PTR
+         LDA   #>TXTWIN
+         STA   PTR+1
+         JSR   PRINT
+         LDA   #10
+         JSR   DELAI
+         JMP   REPLAY
 *
-LOSE     JSR   PRBOMB
-         JSR   BELL
-         LDA   #"L"
-         JSR   COUT
-         RTS
+LOSE     JSR   BELL
+         LDA   #0
+         STA   CH                  
+         LDA   #GRIDLINE+18
+         JSR   TABV                
+         LDA   #TXTLOSE
+         STA   PTR
+         LDA   #>TXTLOSE
+         STA   PTR+1
+         JSR   PRINT
+         LDA   #10
+         JSR   DELAI
+         JSR   PRBOMB
+         JMP   REPLAY
 *
+IRELOOP  JMP   RELOOP     ;FOR JUMP RANGE
 *REVEALS CHOSEN SPOT
 REVEAL   LDA   #0
          STA   NEXTCNT
@@ -197,8 +235,6 @@ EXPLORE4 LDA   NEXPLORE
          RTS
 *
 MOVEBMB  STX   TEMP+6     ;OLD SPOT
-         LDX   #0
-         JSR   PRBYTE
 MOVEBMB1 LDA   GRID,X
          CMP   #$0F
          BCC   MOVEBMB2   ;IF CLEAR
@@ -286,14 +322,12 @@ PRNAME   JSR   HOME       ; ECRITURE TITRE
          STA   CH                  
          LDA   #GRIDLINE-2                  
          JSR   TABV                
-         LDX   #0                  
-PRNAME1  LDA   TITRE,X             
-         CMP   #$AA                
-         BEQ   PRNAME2                 
-         JSR   COUT                
-         INX                      
-         BNE   PRNAME1
-PRNAME2  RTS
+         LDA   #TITRE
+         STA   PTR
+         LDA   #>TITRE
+         STA   PTR+1
+         JSR   PRINT
+         RTS
 *
 *PRINTS THE GRID OUTLINE
 PROUTL   LDA   #GRIDLINE-2 ;2 PARCE QUE VA INCREMENTER
@@ -384,22 +418,25 @@ PRGRID4  JSR   CROUT
          JMP   PRGRID1    ;RESET COLUMN
 PRGRID5  RTS
 *
+*PRINT AT LINE GRIDLINE+17
 PRFLAG   RTS
 *
 *REVEALS ALL BOMBS AND REPRINTS THE GRID
-PRBOMB   LDX   #0
-PRBOMB1  LDA   GRID,X
+PRBOMB   LDY   #0
+PRBOMB1  LDA   GRID,Y
          AND   #%00001111 ;LOW BYTE
          CMP   #$0F
          BNE   PRBOMB2
          CLC
          ADC   #$20       ;REVEAL
-         STA   GRID,X     ;UPDATE
-PRBOMB2  INX
+         STA   GRID,Y     ;UPDATE
+         LDA   #2
+         JSR   DELAI
+         JSR   PRGRID
+PRBOMB2  INY
          BEQ   PRBOMB3    ;IF OVERFLOWED
          JMP   PRBOMB1
-PRBOMB3  JSR   PRGRID
-         RTS
+PRBOMB3  RTS
 *
 *PUTS IN ACC THE CHAR REPRESENTING
 *THE GRID POS IN X 
@@ -566,6 +603,16 @@ ISIN2    LDY   #$FF
 ISIN3    STY   RESULT
          RTS
 *
+*PRINTS MESSAGE STARTING IN PTR
+*UP TO * CHAR, ASSUMES CURSOR IN RIGHT SPOT
+PRINT    LDY   #0
+PRINT1   LDA   (PTR),Y
+         CMP   #"*"
+         BEQ   PRINT2
+         JSR   COUT
+         INY
+         JMP   PRINT1
+PRINT2   RTS
 *MOVES ACC HIGH BYTE TO LOW BYTE
 *USES X
 TOLOW    LDX   #4
@@ -574,6 +621,17 @@ TOLOW1   LSR
          BEQ   TOLOW2
          JMP   TOLOW1
 TOLOW2   RTS
+*
+DIXIEME  LDA   #197
+         JSR   WAIT
+         RTS
+*
+*ATTEND ACC DIXIEMES DE SECONDE
+DELAI    STA   TEMP
+DIXI     JSR   DIXIEME
+         DEC   TEMP
+         BNE   DIXI
+         RTS
 *
 *RANDOM GENERATION
 IRANDOM  LDA   $4E
@@ -596,7 +654,10 @@ RNDSEED  HEX   CAFE
 COIN     ASC  "+"
 HAUT     ASC  "-"
 COTE     ASC  "|"
-TITRE    ASC  "DEMINEUR*"
+TITRE    ASC "DEMINEUR*"
+TXTLOSE  ASC "BOUM! T'ES EN MIETTES*"
+TXTWIN   ASC "BRAVO! TU AS REUSSI*"
+TXTREPL  ASC "Q POUR QUITTER, R POUR REJOUER *"
 *                 
 LEN      DS    1
 RESULT   DS    1
