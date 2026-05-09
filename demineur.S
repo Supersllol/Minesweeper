@@ -21,7 +21,7 @@ GRIDLINE EQU   $03
 *
          ORG   $8000
 *
-         LDA   #10
+         LDA   #120
          STA   NBOMBS
 *
 INIT     JSR   SETTXT
@@ -38,6 +38,7 @@ INIT     JSR   SETTXT
          JSR   PRNAME
          JSR   PROUTL
          JSR   PRGRID
+         JSR   PRFLAG
 *
 LOOP     JSR   RDKEY
          CMP   #"Q"
@@ -124,8 +125,9 @@ REPLAY   LDA   #0
          JSR   PRINT
 REPLAY1  JSR   RDKEY
          CMP   #"Q"
-         BEQ   QUIT
-         CMP   #"R"
+         BNE   NOTQ       ;ERREUR INTÉRESSANTE ON PEUT PAS BRANCH EN HAUT DE 128
+         JMP   QUIT       ;JMP LUI EST ABSOLU
+NOTQ     CMP   #"R"
          BEQ   JINIT
          JMP   REPLAY1
 *
@@ -146,12 +148,52 @@ FLAGADD  LDY   NFLAGS
          ADC   #$10       ;FLAG
          STA   GRID,X
          DEC   NFLAGS
-         JMP   FLAGEND
+         LDA   UN
+         CLC
+         ADC   #$01
+         STA   UN
+         CMP   #$0A       ;VERIFIE SI CARRY
+         BNE   GO
+         LDA   #$00
+         STA   UN
+         LDA   DEC
+         CLC
+         ADC   #$01
+         STA   DEC
+         CMP   #$0A       ;VERFIFIE SI CARRY
+         BCC   GO
+         LDA   #$00
+         STA   DEC
+         LDA   CEN
+         CLC
+         ADC   #$01
+         STA   CEN  
+GO       JMP   FLAGEND
 *
 FLAGNO   SEC
          SBC   #$10       ;REMOVE
          STA   GRID,X
          INC   NFLAGS
+         LDA   UN
+         SEC
+         SBC   #$01
+         STA   UN
+         CMP   #$FF       ;VERIFIE SI CARRY
+         BNE   GO
+         LDA   #$09
+         STA   UN
+         LDA   DEC
+         SEC
+         SBC   #$01
+         STA   DEC
+         CMP   #$FF       ;VERFIFIE SI CARRY
+         BCC   GO
+         LDA   #$09
+         STA   DEC
+         LDA   CEN
+         SEC
+         SBC   #$01
+         STA   CEN  
          JMP   FLAGEND
 *
 ISOVER   JSR   PRGRID
@@ -419,7 +461,41 @@ PRGRID4  JSR   CROUT
 PRGRID5  RTS
 *
 *PRINT AT LINE GRIDLINE+17
-PRFLAG   RTS
+PRFLAG   LDA   #GRIDCOL-9
+         STA   CH
+         LDA   #GRIDLINE+18
+         JSR   TABV
+         LDA   #TXTFLAG
+         STA   PTR
+         LDA   #>TXTFLAG
+         STA   PTR+1
+         JSR   PRINT
+         LDA   CEN
+         CLC
+         ADC   #$B0
+         CMP   #$B0
+         BEQ   NOCEN
+         JSR   COUT
+         LDA   DEC
+         CLC
+         ADC   #$B0
+         JSR   COUT
+         JMP   PRUN
+NOCEN    LDA   DEC
+         CLC
+         ADC   #$B0
+         CMP   #$B0
+         BEQ   PRUN
+         JSR   COUT
+PRUN     LDA   UN
+         CLC
+         ADC   #$B0
+         JSR   COUT
+         LDA   #$A0
+         JSR   COUT
+         LDA   #$A0
+         JSR   COUT
+         RTS
 *
 *REVEALS ALL BOMBS AND REPRINTS THE GRID
 PRBOMB   LDY   #0
@@ -655,9 +731,13 @@ COIN     ASC  "+"
 HAUT     ASC  "-"
 COTE     ASC  "|"
 TITRE    ASC "DEMINEUR*"
-TXTLOSE  ASC "BOUM! T'ES EN MIETTES*"
-TXTWIN   ASC "BRAVO! TU AS REUSSI*"
+TXTLOSE  ASC "BOUM! T'ES EN MIETTES    *"
+TXTWIN   ASC "BRAVO! TU AS REUSSI      *"
 TXTREPL  ASC "Q POUR QUITTER, R POUR REJOUER *"
+TXTFLAG  ASC "NOMBRE DE DRAPEAUX: *"
+UN       HEX   00
+DEC      HEX   00
+CEN      HEX   00
 *                 
 LEN      DS    1
 RESULT   DS    1
