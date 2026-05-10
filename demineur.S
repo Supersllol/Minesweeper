@@ -20,7 +20,7 @@ STATE    EQU   $63        ;1B
 GRIDCOL  EQU   $0C
 GRIDLINE EQU   $03
 *
-VALMIN   EQU   50         ;VAL MIN
+VALMIN   EQU   15         ;VAL MIN
 VALMAX   EQU   205        ;VAL MAX
 *
          ORG   $8000
@@ -239,7 +239,7 @@ _TEXT11  LDA   #2         ;COL. 2
          STA   PTR+1
          JSR   PRINT
 *
-_DE11    LDA   #80
+_DE11    LDA   #50
          JSR   DELAI
 *
 * #-------------------------------
@@ -279,11 +279,11 @@ _DE14    LDA   #30
 *
 INIT     JSR   SETTXT
          LDA   #$77
-         STA   CURSOR
+         STA   CURSOR     ;RESET CURSOR
          JSR   IBOMBS
          JSR   IGRID
          LDA   NBOMBS
-         STA   NFLAGS
+         STA   NFLAGS     ;INIT FLAG COUNT
          JSR   DECFLAG
          LDA   #0
          STA   NEXPLORE
@@ -489,7 +489,7 @@ WIN      LDA   #0
          STA   PTR
          LDA   #>TXTWIN
          STA   PTR+1
-         JSR   PRINT
+         JSR   PRINT      ;WIN MSG
          LDA   #10
          JSR   DELAI
          JMP   REPLAY
@@ -503,7 +503,7 @@ LOSE     JSR   BELL
          STA   PTR
          LDA   #>TXTLOSE
          STA   PTR+1
-         JSR   PRINT
+         JSR   PRINT      ;LOSE MSG
          LDA   #10
          JSR   DELAI
          JSR   PRBOMB
@@ -513,29 +513,30 @@ IRELOOP  JMP   RELOOP     ;FOR JUMP RANGE
 *REVEALS CHOSEN SPOT
 REVEAL   LDA   #0
          STA   NEXTCNT
-         LDX   CURSOR
+         LDX   CURSOR     ;CURRENT SPOT
          LDA   GRID,X
          CMP   #$10       
-         BCS   IRELOOP     ;FLAG OR REVEALED
+         BCS   IRELOOP    ;FLAG OR REVEALED
 REVEAL1  JSR   EXPLORE
          LDX   NEXTCNT
-         BEQ   ISOVER    ;NO MORE
+         BEQ   ISOVER     ;NO MORE
          DEC   NEXTCNT
          LDX   NEXTCNT
          LDA   LNEXT,X    ;FIRST IN PILE
-         TAX              ;SAVE SPOT
+         TAX              ;SAVE SPOT IN X
          JMP   REVEAL1
 *
 *REVEALS SPOT IN X AND ADDS UNEXPLORED
 *NEIGHBORS TO LNEXT WITH NEXTCNT INC
 EXPLORE  LDA   GRID,X
-         CLC
          CMP   #$10
          BCC   EXPLORE2   ;NOT FLAG
+         CLC
          ADC   #$10
          INC   NFLAGS     ;INC COUNT
          JMP   EXPLORE3
-EXPLORE2 ADC   #$20
+EXPLORE2 CLC
+         ADC   #$20
 EXPLORE3 STA   GRID,X     ;UPDATE
          INC   NEXPLORE
          AND   #%00001111 ;LOW BYTE
@@ -545,7 +546,7 @@ EXPLORE3 STA   GRID,X     ;UPDATE
          RTS              ;IF NUMBER, OVER
 EXPLORE4 LDA   NEXPLORE
          CMP   #1
-         BEQ   MOVEBMB   ;IF FIRST MOVE
+         BEQ   MOVEBMB    ;IF FIRST MOVE
          LDA   #1
          STA   STATE      ;LOSE
          RTS
@@ -566,10 +567,10 @@ MOVEBMB2 LDA   #$0F
          LDY   #$FF       ;WANT TO SUB 1
          JSR   NEWVOIS
          LDA   TEMP+6
-         JSR   CNTBMBS
+         JSR   CNTBMBS    ;NEW COUNT FOR OLD SPOT
          LDX   TEMP+6
          CLC   
-         ADC   #$20
+         ADC   #$20       ;REVEAL IT
          STA   GRID,X
          CMP   #$20
          BEQ   ADDNEXT    ;IF EMPTY
@@ -612,7 +613,7 @@ ADDNEXT1 LDA   LVOISINS,X
          JSR   ISNEXT
          LDY   RESULT
          CPY   #$FF
-         BNE   ADDNEXT2   ;ALREADY IN THERE
+         BNE   ADDNEXT2   ;ALREADY IN NEXT
          LDY   NEXTCNT
          STA   LNEXT,Y    ;ADD TO LIST
          INC   NEXTCNT
@@ -773,15 +774,17 @@ PRUN     LDA   UN
 *
 *REVEALS ALL BOMBS AND REPRINTS THE GRID
 PRBOMB   LDY   #0
-PRBOMB1  LDA   GRID,Y
+PRBOMB1  CPY   CURSOR
+         BEQ   PRBOMB2    ;IF CURRENT BOMB, SKIP
+         LDA   GRID,Y
          AND   #%00001111 ;LOW BYTE
          CMP   #$0F
-         BNE   PRBOMB2
+         BNE   PRBOMB2    ;SKIP IF NOT BOMB
          CLC
          ADC   #$20       ;REVEAL
          STA   GRID,Y     ;UPDATE
-         LDA   #1
-         JSR   DELAI
+         LDA   #15
+         JSR   WAIT
          JSR   PRGRID
 PRBOMB2  INY
          BEQ   PRBOMB3    ;IF OVERFLOWED
@@ -841,7 +844,7 @@ IGRID1   LDA   COUNT      ;LOAD CURRENT SPOT
          BEQ   IGRID2     ;IF NOT BOMB
          LDA   #$0F
          JMP   IGRIDNXT
-IGRID2   JSR   CNTBMBS    ;LOAD BOMB NEIGHBORS
+IGRID2   JSR   CNTBMBS    ;LOAD BOMB NEIGHBOR COUNT
 IGRIDNXT LDX   COUNT
          STA   GRID,X
          CPX   #$FF
@@ -853,9 +856,9 @@ IGRIDEND RTS
 *LOAD BOMB COUNT AROUND ACC SPOT TO ACC
 CNTBMBS  JSR   VOISINS    ;LOAD LIST, AND NUMBER TO RESULT
          LDA   RESULT
-         STA   TEMP+1
+         STA   TEMP+1     ;NUMBER OF NEIGHBORS
          LDX   #0
-         STX   TEMP
+         STX   TEMP       ;BOMB COUNTER
 CNTBMBS1 LDA   LVOISINS,X
          JSR   ISBOMB
          LDY   RESULT
@@ -891,7 +894,7 @@ VOISINS5 LDA   TEMP+5
          CLC   
          ADC   TEMP
          CLC
-         ADC   TEMP+4
+         ADC   TEMP+4     ;ADD BOTH OFFSETS
          CMP   TEMP+5     
          BEQ   VOISINS6   ;IF NEW SPOT IS ORIGINAL SPOT
          LDX   RESULT
@@ -966,11 +969,11 @@ PRINT2   RTS
 *MOVES ACC HIGH BYTE TO LOW BYTE
 *USES X
 TOLOW    LDX   #4
-TOLOW1   LSR
+TOLOW1   LSR              ;/2
          DEX
          BEQ   TOLOW2
          JMP   TOLOW1
-TOLOW2   RTS
+TOLOW2   RTS              ;/2^4
 *
 * ACC *= 10
 MUL10   ASL         ;*2
@@ -998,6 +1001,8 @@ IRANDOM  LDA   $4E
          STA   RNDSEED
          LDA   $4F
          STA   RNDSEED+1
+         RTS
+*
 RND16    LDY   #8
          LDA   RNDSEED
 RND1     ASL
@@ -1022,15 +1027,15 @@ MSG1     ASC   "LE DEMINEUR*"
 MSG2     ASC   "UN JEU DE SIMON, ETIENNE ET HANS*"
 *
 MSG3     ASC   "DES MINES SONT CACHEES DANS LE SOL.*"
-MSG4     ASC   "CHAQUE CASE CACHE PEUT ETRE UN PIEGE.*"
+MSG4     ASC   "CHAQUE CASE CACHEE PEUT ETRE UN PIEGE.*"
 MSG5     ASC   "LES CHIFFRES TE DONNENT DES INDICES.*"
 MSG6     ASC   "EVITE LES PIEGES ET GAGNE.*"
 *
-MSG7     ASC   "DITES LE NOMBRE DE MINES [50-205].*"
+MSG7     ASC   "DITES LE NOMBRE DE MINES [15-205].*"
 *
 MSG8     ASC   "[WASD] POUR SE DEPLACER.*"
 MSG9     ASC   "[ESPACE] POUR PLACER UN DRAPEAU.*"
-MSG10    ASC   "[ENTREE] POUR OUVRIR UNE CASE.*"
+MSG10    ASC   "[ENTREE] POUR REVELER UNE CASE.*"
 MSG11    ASC   "[Q] POUR QUITTER LE JEU.*"
 *
 MSG12    ASC   "LANCEMENT DU DEMINEUR...*"
@@ -1043,11 +1048,10 @@ LEN      DS    1
 RESULT   DS    1
 GRID     DS    256
 LNEXT    DS    256
+LBOMBS   DS    256
 NEXTCNT  DS    1
 NBOMBS   DS    1
 NEXPLORE DS    1
 VAL      DS    1
 MAX      DS    1
 PLAYED   DS    1
-* END OF PROGRAM SINCE SIZE IS UNKWOWN
-LBOMBS   DS    1
