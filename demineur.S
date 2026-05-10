@@ -284,7 +284,6 @@ INIT     JSR   SETTXT
          JSR   IGRID
          LDA   NBOMBS
          STA   NFLAGS     ;INIT FLAG COUNT
-         JSR   DECFLAG    ;CHANGE LES FLAGS HEX EN DEC
          LDA   #0
          STA   NEXPLORE
          STA   STATE
@@ -294,7 +293,11 @@ INIT     JSR   SETTXT
          JSR   PRGRID
          JSR   PRFLAG
 *
-LOOP     JSR   RDKEY
+LOOP     LDA   #0
+         STA   CH
+         LDA   #GRIDLINE+19
+         JSR   TABV       ;MOVE CURSOR TO FIXED SPOT
+         JSR   RDKEY
          CMP   #"Q"
          BEQ   QUIT
          CMP   #"W"
@@ -422,14 +425,12 @@ FLAGADD  LDY   NFLAGS
          ADC   #$10       ;FLAG
          STA   GRID,X
          DEC   NFLAGS
-         JSR   DECFLAG
          JMP   FLAGEND
 *
 FLAGNO   SEC
          SBC   #$10       ;REMOVE
          STA   GRID,X
          INC   NFLAGS
-         JSR   DECFLAG
          JMP   FLAGEND
 *
 ISOVER   JSR   PRGRID
@@ -698,7 +699,8 @@ PRGRID4  JSR   CROUT
 PRGRID5  RTS
 *
 *PRINT AT LINE GRIDLINE+17
-PRFLAG   LDA   #GRIDCOL-9
+PRFLAG   JSR   DECFLAG    ;CHANGE LES FLAGS HEX EN DEC
+         LDA   #GRIDCOL-9
          STA   CH
          LDA   #GRIDLINE+18
          JSR   TABV
