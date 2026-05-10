@@ -284,7 +284,7 @@ INIT     JSR   SETTXT
          JSR   IGRID
          LDA   NBOMBS
          STA   NFLAGS     ;INIT FLAG COUNT
-         JSR   DECFLAG
+         JSR   DECFLAG    ;CHANGE LES FLAGS HEX EN DEC
          LDA   #0
          STA   NEXPLORE
          STA   STATE
