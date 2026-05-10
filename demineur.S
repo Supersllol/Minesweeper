@@ -7,6 +7,7 @@ RDKEY    EQU   $FD0C
 SETTXT   EQU   $FB33
 BELL     EQU   $FF3A
 WAIT     EQU   $FCA8
+GETLN    EQU   $FD6F
 *
 PTR      EQU   $6         ;2B
 LVOISINS EQU   $50        ;8B
@@ -19,10 +20,262 @@ STATE    EQU   $63        ;1B
 GRIDCOL  EQU   $0C
 GRIDLINE EQU   $03
 *
+VALMIN   EQU   50         ;VAL MIN
+VALMAX   EQU   205        ;VAL MAX
+*
          ORG   $8000
 *
-         LDA   #120
+* #-------------------------------
+* # WINDOW 1 - TITLE SCREEN
+* #-------------------------------
+*
+_W1      JSR   HOME       ;E. VIDE
+*
+_DE0     LDA   #10
+         JSR   DELAI
+*
+_TEXT1   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #10        ;LIG. 10
+         JSR   TABV       
+         LDA   #MSG1
+         STA   PTR
+         LDA   #>MSG1
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE1     LDA   #20
+         JSR   DELAI
+*
+_TEXT2   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #11        ;LIG. 11
+         JSR   TABV       
+         LDA   #MSG2
+         STA   PTR
+         LDA   #>MSG2
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE2     LDA   #20
+         JSR   DELAI
+*
+* #-------------------------------
+* # WINDOW 2 - HISTOIRE
+* #-------------------------------
+*
+_W2      JSR   HOME       ;E. VIDE
+*
+_DE3     LDA   #05
+         JSR   DELAI
+*
+_TEXT3   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #9        ;LIG. 9
+         JSR   TABV       
+         LDA   #MSG3
+         STA   PTR
+         LDA   #>MSG3
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE4     LDA   #25
+         JSR   DELAI
+*
+_TEXT4   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #10        ;LIG. 10
+         JSR   TABV       
+         LDA   #MSG4
+         STA   PTR
+         LDA   #>MSG4
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE5     LDA   #25
+         JSR   DELAI
+*
+_TEXT5   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #11        ;LIG. 11
+         JSR   TABV       
+         LDA   #MSG5
+         STA   PTR
+         LDA   #>MSG5
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE6     LDA   #25
+         JSR   DELAI
+*
+_TEXT6   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #12        ;LIG. 12
+         JSR   TABV       
+         LDA   #MSG6
+         STA   PTR
+         LDA   #>MSG6
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE7     LDA   #25
+         JSR   DELAI
+*
+* #-------------------------------
+* # WINDOW 3 - BOMBES
+* #-------------------------------
+*
+_W3      JSR   HOME       ;E. VIDE
+*
+_DE8     LDA   #05
+         JSR   DELAI         
+*
+ASK      JSR   HOME
+         LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #10        ;LIG. 10
+         JSR   TABV       
+         LDA   #MSG7
+         STA   PTR
+         LDA   #>MSG7
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE9     LDA   #05
+         JSR   DELAI
+*
+_PLACE   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #11        ;LIG. 11
+         JSR   TABV       
+*
+         JSR   GETLN  
+_LEN     CPX   #0
+         BEQ   ECHEC       ;=0
+         CPX   #4
+         BCS   ECHEC       ;>= 4
+         STX   MAX
+*
+         LDX   #0
+         STX   VAL
+CONVERT  LDA   VAL
+         CMP   #26
+         BCS   ECHEC      ;OVERFLOW
+         JSR   MUL10
+         STA   VAL        ;VAL*=10
+         LDA   $200,X
+         SEC
+         SBC   #$B0
+         CMP   #$0A
+         BCS   ECHEC      ;NOT NUM
+         CLC
+         ADC   VAL
+         BCS   ECHEC      ;OVERFLOW
+         STA   VAL        ;+=ACC
+         INX   
+         CPX   MAX        
+         BNE   CONVERT    ;NO DONE
+*
+_VERIF   LDA   VAL
+         CMP   #VALMIN
+         BCC   ECHEC      ;<MIN
+*
+         CMP   #VALMAX+1
+         BCS   ECHEC      ;>MAX
          STA   NBOMBS
+         LDA   PLAYED
+         BEQ   VERIF1       
+         JMP   INIT       ;SKIP INTRO
+VERIF1   JMP   _W4        ;W4
+*
+ECHEC    JMP   ASK        ;RESTART
+*
+* #-------------------------------
+* # WINDOW 4 - COMMANDES
+* #-------------------------------
+*
+_W4      JSR   HOME       ;E. VIDE
+*
+_DE10    LDA   #05
+         JSR   DELAI
+*
+_TEXT8   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #9        ;LIG. 9
+         JSR   TABV       
+         LDA   #MSG8
+         STA   PTR
+         LDA   #>MSG8
+         STA   PTR+1
+         JSR   PRINT
+*
+_TEXT9   LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #10        ;LIG. 10
+         JSR   TABV       
+         LDA   #MSG9
+         STA   PTR
+         LDA   #>MSG9
+         STA   PTR+1
+         JSR   PRINT
+*
+_TEXT10  LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #11        ;LIG. 11
+         JSR   TABV       
+         LDA   #MSG10
+         STA   PTR
+         LDA   #>MSG10
+         STA   PTR+1
+         JSR   PRINT
+*
+_TEXT11  LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #12        ;LIG. 12
+         JSR   TABV       
+         LDA   #MSG11
+         STA   PTR
+         LDA   #>MSG11
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE11    LDA   #80
+         JSR   DELAI
+*
+* #-------------------------------
+* # WINDOW 5 - LANCEMENT
+* #-------------------------------
+*
+_W5      JSR   HOME       ;E. VIDE
+*
+_DE12    LDA   #05
+         JSR   DELAI         
+*
+_TEXT12  LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #10        ;LIG. 10
+         JSR   TABV       
+         LDA   #MSG12
+         STA   PTR
+         LDA   #>MSG12
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE13    LDA   #30
+         JSR   DELAI
+*
+_TEXT13  LDA   #2         ;COL. 2
+         STA   CH
+         LDA   #11        ;LIG. 11
+         JSR   TABV       
+         LDA   #MSG13
+         STA   PTR
+         LDA   #>MSG13
+         STA   PTR+1
+         JSR   PRINT
+*
+_DE14    LDA   #30
+         JSR   DELAI
 *
 INIT     JSR   SETTXT
          LDA   #$77
@@ -111,10 +364,12 @@ SPCD     LDA   CURSOR
 INPUTEND JSR   PRGRID
          JMP   RELOOP
 *
-JINIT    JMP   INIT       ; FOR RANGE
+JASK     JMP   ASK       ; FOR RANGE
 *
 *ASKS THE USER TO REPLAY OR QUIT
-REPLAY   LDA   #0
+REPLAY   LDA   #1
+         STA   PLAYED
+         LDA   #0
          STA   CH                  
          LDA   #GRIDLINE+19
          JSR   TABV                
@@ -128,7 +383,7 @@ REPLAY1  JSR   RDKEY
          BNE   NOTQ       ;ERREUR INTÉRESSANTE ON PEUT PAS BRANCH EN HAUT DE 128
          JMP   QUIT       ;JMP LUI EST ABSOLU
 NOTQ     CMP   #"R"
-         BEQ   JINIT
+         BEQ   JASK
          JMP   REPLAY1
 *
 *FLAGS CHOSEN SPOT 
@@ -506,7 +761,7 @@ PRBOMB1  LDA   GRID,Y
          CLC
          ADC   #$20       ;REVEAL
          STA   GRID,Y     ;UPDATE
-         LDA   #2
+         LDA   #1
          JSR   DELAI
          JSR   PRGRID
 PRBOMB2  INY
@@ -698,6 +953,15 @@ TOLOW1   LSR
          JMP   TOLOW1
 TOLOW2   RTS
 *
+* ACC *= 10
+MUL10   ASL         ;*2
+        STA TEMP
+        ASL         ;*4
+        ASL         ;*8
+        CLC
+        ADC TEMP    ;*8 + *2 = *10
+        RTS
+*
 DIXIEME  LDA   #197
          JSR   WAIT
          RTS
@@ -735,6 +999,23 @@ TXTLOSE  ASC "BOUM! T'ES EN MIETTES    *"
 TXTWIN   ASC "BRAVO! TU AS REUSSI      *"
 TXTREPL  ASC "Q POUR QUITTER, R POUR REJOUER *"
 TXTFLAG  ASC "NOMBRE DE DRAPEAUX: *"
+MSG1     ASC   "LE DEMINEUR*"
+MSG2     ASC   "UN JEU DE SIMON, ETIENNE ET HANS*"
+*
+MSG3     ASC   "DES MINES SONT CACHEES DANS LE SOL.*"
+MSG4     ASC   "CHAQUE CASE CACHE PEUT ETRE UN PIEGE.*"
+MSG5     ASC   "LES CHIFFRES TE DONNENT DES INDICES.*"
+MSG6     ASC   "EVITE LES PIEGES ET GAGNE.*"
+*
+MSG7     ASC   "DITES LE NOMBRE DE MINES [50-205].*"
+*
+MSG8     ASC   "[WASD] POUR SE DEPLACER.*"
+MSG9     ASC   "[ESPACE] POUR PLACER UN DRAPEAU.*"
+MSG10    ASC   "[ENTREE] POUR OUVRIR UNE CASE.*"
+MSG11    ASC   "[Q] POUR QUITTER LE JEU.*"
+*
+MSG12    ASC   "LANCEMENT DU DEMINEUR...*"
+MSG13    ASC   "BONNE CHANCE. LE MONDE COMPTE SUR TOI.*"
 UN       HEX   00
 DEC      HEX   00
 CEN      HEX   00
@@ -746,5 +1027,8 @@ LNEXT    DS    256
 NEXTCNT  DS    1
 NBOMBS   DS    1
 NEXPLORE DS    1
+VAL      DS    1
+MAX      DS    1
+PLAYED   DS    1
 * END OF PROGRAM SINCE SIZE IS UNKWOWN
 LBOMBS   DS    1
