@@ -422,53 +422,15 @@ FLAGADD  LDY   NFLAGS
          ADC   #$10       ;FLAG
          STA   GRID,X
          DEC   NFLAGS
-         LDA   UN
-         SEC
-         SBC   #$01
-         STA   UN
-         CMP   #$FF       ;VERIFIE SI CARRY
-         BNE   GO
-         LDA   #$09
-         STA   UN
-         LDA   DEC
-         SEC
-         SBC   #$01
-         STA   DEC
-         CMP   #$FF       ;VERFIFIE SI CARRY
-         BCC   GO
-         LDA   #$09
-         STA   DEC
-         LDA   CEN
-         SEC
-         SBC   #$01
-         STA   CEN  
+         JSR   DECFLAG
          JMP   FLAGEND
 *
 FLAGNO   SEC
          SBC   #$10       ;REMOVE
          STA   GRID,X
          INC   NFLAGS
-         LDA   UN
-         CLC
-         ADC   #$01
-         STA   UN
-         CMP   #$0A       ;VERIFIE SI CARRY
-         BNE   GO
-         LDA   #$00
-         STA   UN
-         LDA   DEC
-         CLC
-         ADC   #$01
-         STA   DEC
-         CMP   #$0A       ;VERFIFIE SI CARRY
-         BCC   GO
-         LDA   #$00
-         STA   DEC
-         LDA   CEN
-         CLC
-         ADC   #$01
-         STA   CEN  
-GO       JMP   FLAGEND
+         JSR   DECFLAG
+         JMP   FLAGEND
 *
 ISOVER   JSR   PRGRID
          JSR   PRFLAG
