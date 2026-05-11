@@ -333,10 +333,7 @@ INPUTA   JMP   INA
 INPUTS   JMP   INS
 INPUTD   JMP   IND
 *
-VICTOIRE JSR   SON
-         JMP   RELOOP
-*
-SON      LDA #$D0       
+VICTOIRE LDA #$D0       
          STA PITCH        ;FREQUENCE DU SON
          LDA #$CF   
          STA DUREE        ;DUREE DU SON (DELAI)
