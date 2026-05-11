@@ -322,19 +322,19 @@ JFLAG    JMP   FLAG       ;FOR RANGE
 *
 INPUTW   LDA   CURSOR
          SEC
-         SBC   #$10
+         SBC   #$10       ;BIT FORT EST LA COLONNE
          STA   CURSOR
          JMP   INPUTEND
 *
 INPUTA   LDA   CURSOR
-         AND   #%00001111
-         BEQ   SPCA
+         AND   #%00001111 ;CONSERVE SEULEMENT LE BIT FAIBLE
+         BEQ   SPCA       ;SI 0000
          LDA   CURSOR
          SEC
          SBC   #$01
          STA   CURSOR
          JMP   INPUTEND
-SPCA     LDA   CURSOR
+SPCA     LDA   CURSOR     ;ON RAJOUTE $10 POUR COMPENSER LA SOUSTRACTION
          CLC
          ADC   #$10
          SEC
@@ -344,20 +344,20 @@ SPCA     LDA   CURSOR
 *
 INPUTS   LDA   CURSOR
          CLC
-         ADC   #$10
+         ADC   #$10      ;BIT FORT EST LA COLONNE
          STA   CURSOR
          JMP   INPUTEND
 *
 INPUTD   LDA   CURSOR
          AND   #%00001111
          CMP   #$0F
-         BEQ   SPCD
+         BEQ   SPCD      ;SI 1111
          LDA   CURSOR
          CLC
          ADC   #$01
          STA   CURSOR
          JMP   INPUTEND
-SPCD     LDA   CURSOR
+SPCD     LDA   CURSOR    ;ON ENLEVE $10 POUR COMPENSER ADDITION 
          SEC
          SBC   #$10
          CLC
@@ -365,7 +365,7 @@ SPCD     LDA   CURSOR
          STA   CURSOR
          JMP   INPUTEND
 *
-INPUTEND JSR   PRGRID
+INPUTEND JSR   PRGRID    ;ON RAFFICHE LA GRILLE
          JMP   RELOOP
 *
 JASK     JMP   ASK       ; FOR RANGE
@@ -411,10 +411,10 @@ UNITE    STX   DEC        ; DIZAINE
 *
 FLAG     LDX   CURSOR
          LDA   GRID,X     ;SPOT
-         CMP   #$10
-         BCC   FLAGADD    ;ADD
-         CMP   #$20
-         BCC   FLAGNO     ;REMOVE
+         CMP   #$10       ;VALEUR QUAND FLAG
+         BCC   FLAGADD    ;ADD PCQ PLUS PETIT
+         CMP   #$20       ;VALEUR PLUS QUE FLAG
+         BCC   FLAGNO     ;REMOVE PCQ PLUS PETIT
 FLAGEND  JSR   PRGRID
          JSR   PRFLAG
          JMP   RELOOP
@@ -610,31 +610,31 @@ PRNAME   JSR   HOME       ; ECRITURE TITRE
          RTS
 *
 *PRINTS THE GRID OUTLINE
-PROUTL   LDA   #GRIDLINE-2 ;2 PARCE QUE VA INCREMENTER
+PROUTL   LDA   #GRIDLINE-2
          STA   TEMP       ;TEMP A LA LIGNE
 PROUTL1  LDX   #0         ;CONTOUR
          INC   TEMP
-         LDA   #GRIDCOL-1 ;1 DERRIERE LA GRILLE
+         LDA   #GRIDCOL-1 ;AU DESSUS LA GRILLE
          STA   CH
          LDA   TEMP
          JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
          LDA   COIN
          JSR   COUT
 *
-PRTOP    LDA   HAUT   
-         JSR   COUT       ; 1. On affiche le tiret '-'
-         INX              ; 2. On augmente le compteur X
-         CPX   #16       ; 3. On regarde si on a atteint 16
-         BNE   PRTOP       ; 4. On boucle (BNE regarde directement le CPX !)
+PRTOP    LDA   HAUT       ;-
+         JSR   COUT
+         INX
+         CPX   #16        ;ATTEINT 16 FIN
+         BNE   PRTOP
 * 
          LDA   COIN
-         JSR   COUT       ; On affiche le '+' de droite
+         JSR   COUT       ;+ DE DROITE
 * 
          LDA   TEMP
          SEC
          SBC   #GRIDLINE-1
-         CMP   #$11       ; Est-ce qu'on vient de dessiner le bas
-         BEQ   PROUTL2     ; SI OUI LE CONTOUR EST FINI
+         CMP   #$11       ;EST-CE QUE VIENT DE FAIRE LE BAS (LE INC TEMP)
+         BEQ   PROUTL2    ;SI OUI LE CONTOUR EST FINI
 *
 PRSIDE   INC   TEMP
          LDA   #GRIDCOL-1
@@ -645,18 +645,18 @@ PRSIDE   INC   TEMP
          JSR   COUT
          LDA   #GRIDCOL-1
          CLC
-         ADC   #$11       ; $11 en hex = 17 en décimal (largeur de votre grille)
+         ADC   #$11       ;$11 EN HEX = 17 EN DECIMAL
          STA   CH
          LDA   TEMP
-         JSR   TABV       ;PLACE AU PREMIER DE LA LIGNE
+         JSR   TABV       ;PLACE AU DERNIER DE LA LIGNE
          LDA   COTE
          JSR   COUT
          LDA   TEMP
          SEC
          SBC   #GRIDLINE-1
-         CMP   #$10       ; A-t-on dessiné 16 lignes de murs 
-         BEQ   PROUTL1    ; Si oui, on saute pour dessiner le plancher
-         BNE   PRSIDE     ; Sinon, on boucle pour le prochain mur
+         CMP   #$10       ;DESSINER LES 16 LIGNES ($10 = 16)
+         BEQ   PROUTL1    ;OUI ON SAUTE AU PLANCHER
+         BNE   PRSIDE     ;NON PROCHAIN MUR
 PROUTL2  RTS
 *
 *PRINTS THE GRID TO THE SCREEN
@@ -709,13 +709,14 @@ PRFLAG   JSR   DECFLAG    ;CHANGE LES FLAGS HEX EN DEC
          LDA   #>TXTFLAG
          STA   PTR+1
          JSR   PRINT
+*
          LDA   CEN
          CLC
-         ADC   #$B0
+         ADC   #$B0       ;ADDITIONNE $B0 POUR VALEUR ASC
          CMP   #$B0
-         BEQ   NOCEN
+         BEQ   NOCEN      ;PAS DE CENTAINE
          JSR   COUT
-         LDA   DEC
+         LDA   DEC        ;SI OUI ON AFFICHE TOUT
          CLC
          ADC   #$B0
          JSR   COUT
@@ -724,13 +725,13 @@ NOCEN    LDA   DEC
          CLC
          ADC   #$B0
          CMP   #$B0
-         BEQ   PRUN
+         BEQ   PRUN       ;VERIFIE SI DIZAINE
          JSR   COUT
 PRUN     LDA   UN
          CLC
          ADC   #$B0
          JSR   COUT
-         LDA   #$A0
+         LDA   #$A0       ;ESPACE POUR ASSURER QUE SE SOIT VIDE
          JSR   COUT
          LDA   #$A0
          JSR   COUT
