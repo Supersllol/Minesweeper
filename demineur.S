@@ -372,7 +372,7 @@ JASK     JMP   ASK       ; FOR RANGE
 *
 *ASKS THE USER TO REPLAY OR QUIT
 REPLAY   LDA   #1
-         STA   PLAYED
+         STA   PLAYED    ;SKIP INTRO
          LDA   #0
          STA   CH                  
          LDA   #GRIDLINE+19
