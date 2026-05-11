@@ -26,6 +26,10 @@ GRIDLINE EQU   $03
 VALMIN   EQU   15         ;VAL MIN
 VALMAX   EQU   205        ;VAL MAX
 *
+SPKR     EQU   $C030
+PITCH    EQU   $00
+DUREE    EQU   $00
+*
          ORG   $8000
 *
 * #-------------------------------
@@ -33,6 +37,8 @@ VALMAX   EQU   205        ;VAL MAX
 * #-------------------------------
 *
 _W1      JSR   HOME       ;E. VIDE
+         LDA   #0
+         STA   PLAYED
 *
 _DE0     LDA   #10
          JSR   DELAI
@@ -322,14 +328,49 @@ QUIT     JSR   HOME
 *
 JREVEAL  JMP   REVEAL     ;FOR RANGE
 JFLAG    JMP   FLAG       ;FOR RANGE
+INPUTW   JMP   INW
+INPUTA   JMP   INA
+INPUTS   JMP   INS
+INPUTD   JMP   IND
 *
-INPUTW   LDA   CURSOR
+VICTOIRE JSR   SON
+         JMP   RELOOP
+*
+SON      LDA #$D0       
+         STA PITCH        ;FREQUENCE DU SON
+         LDA #$CF   
+         STA DUREE        ;DUREE DU SON (DELAI)
+         JSR JOUER
+*
+         LDA #$80      
+         STA PITCH
+         LDA #$CF     
+         STA DUREE
+         JSR JOUER
+*
+         LDA #$40      
+         STA PITCH
+         LDA #$B0   
+         STA DUREE
+         JSR JOUER
+         RTS
+*
+JOUER      
+VVIB     LDA SPKR         ;ACTIVATION DU SON
+         LDX PITCH
+VDELAI   DEX
+         BNE VDELAI       ;SON NORMAL (BIP)
+         DEC DUREE
+         BNE VVIB         ;MAINTIENT LE SON PLUS LONGTEMPS
+         RTS
+*
+INW   LDA   CURSOR
          SEC
          SBC   #$10       ;BIT FORT EST LA COLONNE
          STA   CURSOR
          JMP   INPUTEND
 *
-INPUTA   LDA   CURSOR
+INA   LDA   CURSOR
          AND   #%00001111 ;CONSERVE SEULEMENT LE BIT FAIBLE
          BEQ   SPCA       ;SI 0000
          LDA   CURSOR
@@ -345,13 +386,13 @@ SPCA     LDA   CURSOR     ;ON RAJOUTE $10 POUR COMPENSER LA SOUSTRACTION
          STA   CURSOR
          JMP   INPUTEND
 *
-INPUTS   LDA   CURSOR
+INS   LDA   CURSOR
          CLC
          ADC   #$10      ;BIT FORT EST LA COLONNE
          STA   CURSOR
          JMP   INPUTEND
 *
-INPUTD   LDA   CURSOR
+IND   LDA   CURSOR
          AND   #%00001111
          CMP   #$0F
          BEQ   SPCD      ;SI 1111
@@ -447,7 +488,8 @@ ISOVER   JSR   PRGRID
          BEQ   WIN        ;IF EXPLORED ALL
          JMP   RELOOP
 *
-WIN      LDA   #0
+WIN      JSR   VICTOIRE
+         LDA   #0
          STA   CH                  
          LDA   #GRIDLINE+18
          JSR   TABV                
@@ -1011,7 +1053,7 @@ MSG13    ASC   "BONNE CHANCE. LE MONDE COMPTE SUR TOI.*"
 UN       HEX   00
 DEC      HEX   00
 CEN      HEX   00
-*                 
+*
 LEN      DS    1
 RESULT   DS    1
 GRID     DS    256
